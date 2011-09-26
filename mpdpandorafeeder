@@ -26,9 +26,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--port', type=int,
         help='port for our web service')
+    parser.add_argument(
+        '--base', help='base URI to be prepended to all internal URIs')
     parser.add_argument("--info", help="log at INFO")
     args = parser.parse_args()
     mpdHost, mpdPort = args.mpd.split(':')
+    base = args.base or ("http://localhost:%s/" % args.port)
 
     logging.basicConfig(level=logging.INFO if args.info else logging.WARN)
     if args.info:
@@ -43,8 +46,10 @@ if __name__ == '__main__':
     task.LoopingCall(feeder.update).start(interval=2)
     reactor.connectTCP(mpdHost, int(mpdPort), mc)  
     reactor.listenTCP(args.port,
-                      cyclone.web.Application(webservice.mapping,
-                                              pandora=pandora,
-                                              mpdConnection=mc,
-                                              feeder=feeder))
+                      cyclone.web.Application(
+                          webservice.mapping,
+                          baseUri=base,
+                          pandora=pandora,
+                          mpdConnection=mc,
+                          feeder=feeder))
     reactor.run()

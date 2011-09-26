@@ -36,14 +36,15 @@ class Resource(cyclone.web.RequestHandler):
         m = getattr(self.pandora(), method)
         return deferToThread(m, *args)
 
+    def makeUri(self, rel):
+        return self.settings.baseUri + rel
+
 
 class Index(Resource):
     def getJson(self):
-        cs = self.settings.feeder.currentStation
         out = {'connectedToMpd' : bool(self.mpd()),
-               'stations' : 'stations/',
-               'currentStation' :
-               stationProperties(cs) if cs is not None else None,
+               'stations' : self.makeUri('stations/'),
+               'currentStation' : self.makeUri('currentStation'),
                }
         out.update(self.settings.feeder.moreStatus())
         return out
@@ -54,7 +55,7 @@ class Stations(Resource):
         ret = []
         for s in self.pandora().stations:
             ret.append(stationProperties(s))
-            ret[-1]['uri'] = 'stations/%s/' % ret[-1]['id']
+            ret[-1]['uri'] = self.makeUri('stations/%s/' % ret[-1]['id'])
         return {'stations' : ret}
 
 
@@ -62,7 +63,7 @@ class Station(Resource):
     def getJson(self, sid):
         def stn(s):
             return {'station' : stationProperties(s),
-                    'play' : 'currentStation'}
+                    'play' : self.makeUri('currentStation')}
         return self.pandoraCall('get_station_by_id', sid).addCallback(stn)
 
 
@@ -71,7 +72,8 @@ class CurrentStation(Resource):
         cs = self.settings.feeder.currentStation
         if cs is None:
             raise cyclone.web.HTTPError(404, "no current station")
-        return stationProperties(cs)
+        return {'station' : stationProperties(cs),
+                'currentSong' : self.makeUri('currentSong')}
 
     def put(self):
         body = json.loads(self.request.body)
