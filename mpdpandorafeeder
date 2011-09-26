@@ -1,0 +1,50 @@
+#!/usr/bin/python
+
+import argparse, logging, sys
+import cyclone.web
+from twisted.internet import reactor, task
+from mpd import MPDFactory
+
+from pithospandora import newPandora
+
+from feeder import MpdFeeder
+import webservice
+
+class MPDConnection(MPDFactory):
+    def __init__(self):
+        self.currentConnection = None
+
+    def connectionMade(self, conn):
+        self.currentConnection = conn
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='web service that adds pandora streams to an mpd playlist')
+    parser.add_argument(
+        '--mpd', metavar='HOST_PORT', default="localhost:6600",
+        help='mpd instance to control, host:port')
+    parser.add_argument(
+        '--port', type=int,
+        help='port for our web service')
+    parser.add_argument("--info", help="log at INFO")
+    args = parser.parse_args()
+    mpdHost, mpdPort = args.mpd.split(':')
+
+    logging.basicConfig(level=logging.INFO if args.info else logging.WARN)
+    if args.info:
+        from twisted.python.log import startLogging
+        startLogging(sys.stdout)
+
+    mc = MPDConnection()
+    feeder = MpdFeeder(mc)
+
+    pandora = newPandora()
+
+    task.LoopingCall(feeder.update).start(interval=2)
+    reactor.connectTCP(mpdHost, int(mpdPort), mc)  
+    reactor.listenTCP(args.port,
+                      cyclone.web.Application(webservice.mapping,
+                                              pandora=pandora,
+                                              mpdConnection=mc,
+                                              feeder=feeder))
+    reactor.run()
