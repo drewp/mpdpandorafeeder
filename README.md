@@ -49,46 +49,46 @@ playlist.
 Resources (but it's REST, so you only have to know how to find the root one)
 ----------------------------------------------------------------------------
 
-GET /
-  current status and links to /stations and /currentStation
+    GET /
+      current status and links to /stations and /currentStation
 
-GET /stations/
-  List of stations with links
+    GET /stations/
+      List of stations with links
 
-GET /stations/<id>/
-  Description of a station. For clarity, you can append a dash and
-  more letters to the id and they will be ignored. E.g. /stations/123/
-  can be accessed as /stations/123-favoriteSongs/
-  
-PUT /currentStation
-  Body is a station representation you got previously.
-  
-  Make this station be the one we're feeding to mpd. If this is a new
-  station than the last one you requested (including if
-  mpdpandorafeeder restarts and forgets the last one you requestd),
-  all pandora songs at the end of your mpd playlist will be cleared,
-  and we'll tell mpd to play the first new one we add. (If there was
-  an option to disable some of this behavior, you would be able to
-  change-station-after-the-current-song which might be cool.)
+    GET /stations/<id>/
+      Description of a station. For clarity, you can append a dash and
+      more letters to the id and they will be ignored. E.g. /stations/123/
+      can be accessed as /stations/123-favoriteSongs/
+      
+    PUT /currentStation
+      Body is a station representation you got previously.
+      
+      Make this station be the one we're feeding to mpd. If this is a new
+      station than the last one you requested (including if
+      mpdpandorafeeder restarts and forgets the last one you requestd),
+      all pandora songs at the end of your mpd playlist will be cleared,
+      and we'll tell mpd to play the first new one we add. (If there was
+      an option to disable some of this behavior, you would be able to
+      change-station-after-the-current-song which might be cool.)
 
-GET /currentStation
-  Station representation that you PUT before, and a link to /currentSong.
+    GET /currentStation
+      Station representation that you PUT before, and a link to /currentSong.
 
-DELETE /currentStation
+    DELETE /currentStation
 
-  Stop feeding this station to mpd. This immediately removes the
-  upcoming songs, but doesn't stop playback or remove the playing
-  song. This puts you in a good position to add a local song after the
-  currently-playing pandora song.
+      Stop feeding this station to mpd. This immediately removes the
+      upcoming songs, but doesn't stop playback or remove the playing
+      song. This puts you in a good position to add a local song after the
+      currently-playing pandora song.
 
-GET /currentSong
+    GET /currentSong
 
-  This returns mpd information about the current song (pandora or
-  not), augmented with pandora details if the song is on there because
-  of the current station. Notable attributes:
+      This returns mpd information about the current song (pandora or
+      not), augmented with pandora details if the song is on there because
+      of the current station. Notable attributes:
 
-    {song: {mpd: {...}
-            pandora: {"album": "...", "albumDetailURL": "http://...",
-                      "artRadio": "http://...jpg", "artist": "...",
-                      "title": "...", "songDetailURL": "http://...",
-                      "fileGain": "-1.3", ...}
+        {song: {mpd: {...}
+                pandora: {"album": "...", "albumDetailURL": "http://...",
+                          "artRadio": "http://...jpg", "artist": "...",
+                          "title": "...", "songDetailURL": "http://...",
+                          "fileGain": "-1.3", ...}
