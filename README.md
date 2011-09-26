@@ -92,3 +92,12 @@ Resources (but it's REST, so you only have to know how to find the root one)
                           "artRadio": "http://...jpg", "artist": "...",
                           "title": "...", "songDetailURL": "http://...",
                           "fileGain": "-1.3", ...}
+
+See also
+--------
+
+http://musicpd.org/mantis/view.php?id=3171
+
+http://kevinmehall.net/p/pithos/
+
+http://6xq.net/projects/pianobar/
