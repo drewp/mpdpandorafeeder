@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!bin/python
 
 import argparse, logging, sys
 import cyclone.web
@@ -28,20 +28,23 @@ if __name__ == '__main__':
         help='port for our web service')
     parser.add_argument(
         '--base', help='base URI to be prepended to all internal URIs')
-    parser.add_argument("--info", help="log at INFO")
+    parser.add_argument("--info", action="store_true", help="log at INFO")
+    parser.add_argument("--debug", action="store_true", help="log at DEBUG")
     args = parser.parse_args()
     mpdHost, mpdPort = args.mpd.split(':')
     base = args.base or ("http://localhost:%s/" % args.port)
 
-    logging.basicConfig(level=logging.INFO if args.info else logging.WARN)
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else (
+            logging.INFO if args.info else
+            logging.WARN))
     if args.info:
         from twisted.python.log import startLogging
         startLogging(sys.stdout)
 
     mc = MPDConnection()
-    feeder = MpdFeeder(mc)
-
     pandora = newPandora()
+    feeder = MpdFeeder(pandora, mc)
 
     task.LoopingCall(feeder.update).start(interval=2)
     reactor.connectTCP(mpdHost, int(mpdPort), mc)  
@@ -51,5 +54,6 @@ if __name__ == '__main__':
                           baseUri=base,
                           pandora=pandora,
                           mpdConnection=mc,
+                          mpd=dict(host=mpdHost, port=int(mpdPort)),
                           feeder=feeder))
     reactor.run()

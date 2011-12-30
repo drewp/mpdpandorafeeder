@@ -8,7 +8,7 @@ Setup
 -----
 
 *  Have pithos installed, and run it to setup your pandora account. This
-   service reads the pithos config files.
+   service reads the pithos config file (.config/pithos.ini).
 
 *  easy_install python-mpd-twisted
   
@@ -92,6 +92,11 @@ Resources (but it's REST, so you only have to know how to find the root one)
                           "artRadio": "http://...jpg", "artist": "...",
                           "title": "...", "songDetailURL": "http://...",
                           "fileGain": "-1.3", ...}
+
+Todo
+----
+
+There are bugs in the reconnect piece
 
 See also
 --------

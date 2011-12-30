@@ -1,12 +1,16 @@
 import re, time, logging
 from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
-from twisted.internet.threads import deferToThread
+from pithospandora import deferredCallWithReconnects
 
 def isPandoraUrl(url):
     return re.match(r"http://audio-[^\.]+\.pandora\.com/", url)
 
 class MpdFeeder(object):
-    def __init__(self, mpdConnection):
+    """
+    call update() every few seconds
+    """
+    def __init__(self, pandora, mpdConnection):
+        self.pandora = pandora
         self.currentStation = None
         self.playedSongs = [] # Song
         self.upcomingSongs = [] # Song
@@ -14,6 +18,7 @@ class MpdFeeder(object):
         self.mpdConnection = mpdConnection
         self.lastError = None
         self.lastErrorTime = 0
+        self.lastStatus = "none"
 
         # this is incomplete. There should be a lock on the playlist
         # that is taken by all the methods that do writes, and
@@ -27,6 +32,7 @@ class MpdFeeder(object):
             "upcomingSongBufferSize" : len(self.upcomingSongs),
             "lastErrorTime" : self.lastErrorTime,
             "lastErrorMessage" : self.lastError,
+            "lastUpdateStatus" : self.lastStatus,
             }
 
     def mpd(self):
@@ -82,29 +88,45 @@ class MpdFeeder(object):
 
     @inlineCallbacks
     def update(self):
-        if (self.mpd() is None # startup
-            or self.currentStation is None # feeder is disabled
-            or not self.updatesAllowed # primitive locking
-            ):
-            return
+        self.lastStatus = yield self._update()
+        logging.debug("update status: %s" % self.lastStatus)
+
+    @inlineCallbacks
+    def _update(self):
+        """
+        returns a status string
+        """
+        
+        if self.mpd() is None:
+            returnValue("Starting up")
+        if self.currentStation is None:
+            returnValue("No current station")
+        if not self.updatesAllowed:
+            returnValue("Sending to mpd")
         
         now = time.time()
         # this time throttling is mostly to avoid load on mpd, but it
         # also helps throttle calls to pandora in case stuff goes
         # really wrong
         if now < self.lastCheckTime + 1.9:
-            return
+            returnValue("Updates too fast")
         self.lastCheckTime = now
 
+        status = ""
         try:
-            self.clearPlayedSongs()
+            status += (yield self.clearPlayedSongs())
             unplayed = (yield self.unplayedPandoraTailSongs())
-            logging.debug("%s unplayed pandora songs" % unplayed)
+            msg = "%s unplayed pandora songs" % unplayed
+            logging.debug(msg)
+            status += " %s" % msg
             if unplayed < 1:
-                yield self.addNextSong()
+                status += (yield self.addNextSong())
         except Exception, e:
             self.lastError = str(e)
             self.lastErrorTime = now
+            returnValue("Error: %s" % self.lastError)
+        returnValue(status)
+
             
     @inlineCallbacks
     def unplayedPandoraTailSongs(self):
@@ -130,8 +152,16 @@ class MpdFeeder(object):
     def clearPlayedSongs(self):
         status = (yield self.mpd().status())
         if 'song' not in status:
-            return
+            returnValue("no played songs")
 
+        # still trying to figure this out. If there's an undecodable
+        # song, we should replace it with another from the pandora
+        # queue, and not risk running out of pandora songs
+        if status.get('error', '').startswith("problems decoding "):
+            yield self.mpd().deleteid(int(status['songid']))
+            returnValue("removed a song that couldn't be decoded")
+
+        ret = ""
         songs = list((yield self.mpd().playlistinfo()))
 
         for pos in range(int(status['song']) - 1, -1, -1):
@@ -139,24 +169,33 @@ class MpdFeeder(object):
             if isPandoraUrl(s['file']):
                 logging.info("remove played song at position %s" % pos)
                 yield self.mpd().deleteid(int(s['id']))
+                ret += " deleted song %s" % s['id']
             else:
                 break
+        returnValue(ret)
 
     @inlineCallbacks
     def addNextSong(self):
         if self.currentStation is None:
-            return
+            returnValue("no current station; nothing to add")
 
+        status = ""
         if not self.upcomingSongs:
-            logging.info("getting more songs from pandora")
-            more = (yield deferToThread(self.currentStation.get_playlist))
+            msg = "getting more songs from pandora"
+            logging.info(msg)
+            status += msg
+            more = yield deferredCallWithReconnects(self.pandora, self.currentStation.get_playlist)
             self.upcomingSongs.extend(more)
+            status += " now we have %s" % len(self.upcomingSongs)
 
         song = self.upcomingSongs.pop(0)
         self.playedSongs.append(song)
-        logging.info("adding to mpd: %s %s" % (song.title, song.audioUrl))
+        msg = "adding to mpd: %s %s" % (song.title, song.audioUrl)
+        status += " %s" % msg
+        logging.info(msg)
         yield self.addStream(song.audioUrl, song.album, song.title)
-
+        returnValue(status)
+        
     def addStream(self, url, album, title):
         return DeferredList([
             self.mpd().add(url),

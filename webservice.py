@@ -1,6 +1,6 @@
-import cyclone.web, json
+import cyclone.web, json, logging, os, socket
 from twisted.internet.defer import maybeDeferred, inlineCallbacks, returnValue
-from twisted.internet.threads import deferToThread
+from pithospandora import deferredCallWithReconnects
 
 def stationProperties(s):
     return dict((k, getattr(s, k)) for k in
@@ -10,7 +10,7 @@ def songProperties(s):
     return dict((k, getattr(s, k)) for k in
                 'album artist artistMusicId audioUrl fileGain identity '
                 'musicId rating stationId title userSeed songDetailURL '
-                'albumDetailURL artRadio songType'.split())
+                'albumDetailURL artRadio'.split())
 
 def mpdCurrentSongProperties(s):
     out = s.copy()
@@ -34,7 +34,7 @@ class Resource(cyclone.web.RequestHandler):
 
     def pandoraCall(self, method, *args):
         m = getattr(self.pandora(), method)
-        return deferToThread(m, *args)
+        return deferredCallWithReconnects(self.pandora(), m, *args)
 
     def makeUri(self, rel):
         return self.settings.baseUri + rel
@@ -45,6 +45,8 @@ class Index(Resource):
         out = {'connectedToMpd' : bool(self.mpd()),
                'stations' : self.makeUri('stations/'),
                'currentStation' : self.makeUri('currentStation'),
+               'host' : socket.gethostname(),
+               'mpd' : self.settings.mpd,
                }
         out.update(self.settings.feeder.moreStatus())
         return out
