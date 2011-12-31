@@ -116,9 +116,9 @@ class MpdFeeder(object):
         try:
             status += (yield self.clearPlayedSongs())
             unplayed = (yield self.unplayedPandoraTailSongs())
-            msg = "%s unplayed pandora songs" % unplayed
+            msg = "%s unplayed pandora song still on mpd playlist. " % unplayed
             logging.debug(msg)
-            status += " %s" % msg
+            status += msg
             if unplayed < 1:
                 status += (yield self.addNextSong())
         except Exception, e:
@@ -151,15 +151,22 @@ class MpdFeeder(object):
     @inlineCallbacks
     def clearPlayedSongs(self):
         status = (yield self.mpd().status())
-        if 'song' not in status:
-            returnValue("no played songs")
 
         # still trying to figure this out. If there's an undecodable
         # song, we should replace it with another from the pandora
         # queue, and not risk running out of pandora songs
         if status.get('error', '').startswith("problems decoding "):
-            yield self.mpd().deleteid(int(status['songid']))
-            returnValue("removed a song that couldn't be decoded")
+            if 'song' not in status:
+                # we could read the status message and go look for the
+                # song with that url, or:
+                yield self.mpd().clear()
+                returnValue("Couldn't decode; cleared playlist")
+            else:
+                yield self.mpd().deleteid(int(status['songid']))
+                returnValue("Removed a song that couldn't be decoded. ")
+
+        if 'song' not in status:
+            returnValue("Mpd isn't playing; nothing to remove. ")
 
         ret = ""
         songs = list((yield self.mpd().playlistinfo()))
@@ -169,7 +176,7 @@ class MpdFeeder(object):
             if isPandoraUrl(s['file']):
                 logging.info("remove played song at position %s" % pos)
                 yield self.mpd().deleteid(int(s['id']))
-                ret += " deleted song %s" % s['id']
+                ret += "Deleted song %s. " % s['id']
             else:
                 break
         returnValue(ret)
@@ -177,22 +184,21 @@ class MpdFeeder(object):
     @inlineCallbacks
     def addNextSong(self):
         if self.currentStation is None:
-            returnValue("no current station; nothing to add")
+            returnValue("No current station; nothing to add. ")
 
         status = ""
         if not self.upcomingSongs:
-            msg = "getting more songs from pandora"
+            msg = "Getting more songs from pandora. "
             logging.info(msg)
             status += msg
             more = yield deferredCallWithReconnects(self.pandora, self.currentStation.get_playlist)
             self.upcomingSongs.extend(more)
-            status += " now we have %s" % len(self.upcomingSongs)
+            status += "Now we have %s. " % len(self.upcomingSongs)
 
         song = self.upcomingSongs.pop(0)
         self.playedSongs.append(song)
-        msg = "adding to mpd: %s %s" % (song.title, song.audioUrl)
-        status += " %s" % msg
-        logging.info(msg)
+        status += "Adding a pandora song to mpd. "
+        logging.info("Adding to mpd: %s %s" % (song.title, song.audioUrl))
         yield self.addStream(song.audioUrl, song.album, song.title)
         returnValue(status)
         
