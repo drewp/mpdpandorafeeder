@@ -28,6 +28,8 @@ if __name__ == '__main__':
         help='port for our web service')
     parser.add_argument(
         '--base', help='base URI to be prepended to all internal URIs')
+    parser.add_argument(
+        '--preferred', help='filename of a list of station names to be listed first')
     parser.add_argument("--info", action="store_true", help="log at INFO")
     parser.add_argument("--debug", action="store_true", help="log at DEBUG")
     args = parser.parse_args()
@@ -45,6 +47,9 @@ if __name__ == '__main__':
     mc = MPDConnection()
     pandora = newPandora()
     feeder = MpdFeeder(pandora, mc)
+    preferred = []
+    if args.preferred:
+        preferred = [l.strip() for l in open(args.preferred).readlines()]
 
     task.LoopingCall(feeder.update).start(interval=2)
     reactor.connectTCP(mpdHost, int(mpdPort), mc)  
@@ -55,5 +60,6 @@ if __name__ == '__main__':
                           pandora=pandora,
                           mpdConnection=mc,
                           mpd=dict(host=mpdHost, port=int(mpdPort)),
+                          preferred=preferred,
                           feeder=feeder))
     reactor.run()

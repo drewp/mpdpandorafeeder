@@ -58,6 +58,12 @@ class Stations(Resource):
         for s in self.pandora().stations:
             ret.append(stationProperties(s))
             ret[-1]['uri'] = self.makeUri('stations/%s/' % ret[-1]['id'])
+        def lookup(station):
+            try:
+                return self.settings.preferred.index(station['name'])
+            except ValueError:
+                return sys.maxint
+        ret.sort(key=lookup)
         return {'stations' : ret}
 
 
