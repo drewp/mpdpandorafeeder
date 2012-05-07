@@ -1,4 +1,4 @@
-import re, time, logging
+import re, time, logging, traceback
 from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
 from pithospandora import deferredCallWithReconnects
 
@@ -121,8 +121,8 @@ class MpdFeeder(object):
             status += msg
             if unplayed < 1:
                 status += (yield self.addNextSong())
-        except Exception, e:
-            self.lastError = str(e)
+        except Exception:
+            self.lastError = traceback.format_exc()
             self.lastErrorTime = now
             returnValue("Error: %s" % self.lastError)
         returnValue(status)
@@ -138,7 +138,6 @@ class MpdFeeder(object):
         """
         songs = list((yield self.mpd().playlistinfo()))
         status = (yield self.mpd().status())
-
         unplayed = 0
         for s in reversed(songs):
             if (isPandoraUrl(s['file']) and
@@ -146,6 +145,7 @@ class MpdFeeder(object):
                 unplayed += 1
             else:
                 break
+
         returnValue(unplayed)
 
     @inlineCallbacks

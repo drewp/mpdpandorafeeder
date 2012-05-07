@@ -1,4 +1,4 @@
-import cyclone.web, json, logging, os, socket
+import cyclone.web, json, logging, os, socket, sys
 from twisted.internet.defer import maybeDeferred, inlineCallbacks, returnValue
 from pithospandora import deferredCallWithReconnects
 
@@ -7,7 +7,7 @@ def stationProperties(s):
                 "isCreator name idToken useQuickMix isQuickMix id".split())
 
 def songProperties(s):
-    return dict((k, getattr(s, k)) for k in
+    return dict((k, getattr(s, k, None)) for k in
                 'album artist artistMusicId audioUrl fileGain identity '
                 'musicId rating stationId title userSeed songDetailURL '
                 'albumDetailURL artRadio'.split())
