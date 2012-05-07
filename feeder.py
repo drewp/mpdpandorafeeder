@@ -3,7 +3,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue, DeferredList
 from pithospandora import deferredCallWithReconnects
 
 def isPandoraUrl(url):
-    return re.match(r"http://audio-[^\.]+\.pandora\.com/", url)
+    return re.match(r"http://[^/]+\.pandora\.com/", url)
 
 class MpdFeeder(object):
     """
