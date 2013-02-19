@@ -106,3 +106,6 @@ http://musicpd.org/mantis/view.php?id=3171
 http://kevinmehall.net/p/pithos/
 
 http://6xq.net/projects/pianobar/
+
+An Android client by Don Hatchett:
+https://play.google.com/store/apps/details?id=com.hatchling.mpdpandorafeederclient
